@@ -65,6 +65,21 @@ message ServerStatusResponse {
     // list of nodes that are unavailable
     // This list may not be exhaustive.
     repeated string unavailable_nodes = 7;
+
+    // Nodes is an exhaustive list of all connected nodes.
+    repeated Node nodes = 8;
+
+    // Version is the version of Cilium/Hubble.
+    string version = 9;
+}
+
+message Node {
+    // Name is the name of the node.
+    string name = 1;
+    // Version is the version of Cilium/Hubble as reported by the node.
+    string version = 2;
+    // State represents the known state of the node.
+    relay.NodeState state = 3;
 }
 
 message GetFlowsRequest {
