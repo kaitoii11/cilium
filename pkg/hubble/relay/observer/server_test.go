@@ -31,6 +31,7 @@ import (
 	peerTypes "github.com/cilium/cilium/pkg/hubble/peer/types"
 	poolTypes "github.com/cilium/cilium/pkg/hubble/relay/pool/types"
 	"github.com/cilium/cilium/pkg/hubble/testutils"
+	nodeTypes "github.com/cilium/cilium/pkg/node/types"
 
 	wrappers "github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/google/go-cmp/cmp"
@@ -384,6 +385,7 @@ func TestServerStatus(t *testing.T) {
 			ocb: fakeObserverClientBuilder{},
 			want: want{
 				resp: &observerpb.ServerStatusResponse{
+					Version:             "hubble-relay",
 					NumFlows:            0,
 					MaxFlows:            0,
 					SeenFlows:           0,
@@ -391,6 +393,17 @@ func TestServerStatus(t *testing.T) {
 					NumConnectedNodes:   &wrappers.UInt32Value{Value: 0},
 					NumUnavailableNodes: &wrappers.UInt32Value{Value: 1},
 					UnavailableNodes:    []string{"noip"},
+					Nodes: []*observerpb.Node{
+						{
+							Name:    nodeTypes.GetName(),
+							Version: "hubble-relay",
+							State:   relaypb.NodeState_NODE_CONNECTED,
+						}, {
+							Name:    "noip",
+							Version: "",
+							State:   relaypb.NodeState_NODE_UNAVAILABLE,
+						},
+					},
 				},
 				log: []string{
 					`level=info msg="No connection to peer noip, skipping" address="<nil>"`,
@@ -438,6 +451,7 @@ func TestServerStatus(t *testing.T) {
 							switch p.Name {
 							case "one":
 								return &observerpb.ServerStatusResponse{
+									Version:   "hubble v1.9.0",
 									NumFlows:  1111,
 									MaxFlows:  1111,
 									SeenFlows: 1111,
@@ -445,6 +459,7 @@ func TestServerStatus(t *testing.T) {
 								}, nil
 							case "two":
 								return &observerpb.ServerStatusResponse{
+									Version:   "hubble v1.9.0",
 									NumFlows:  2222,
 									MaxFlows:  2222,
 									SeenFlows: 2222,
@@ -459,12 +474,28 @@ func TestServerStatus(t *testing.T) {
 			},
 			want: want{
 				resp: &observerpb.ServerStatusResponse{
+					Version:             "hubble-relay",
 					NumFlows:            3333,
 					MaxFlows:            3333,
 					SeenFlows:           3333,
 					UptimeNs:            111111111,
 					NumConnectedNodes:   &wrappers.UInt32Value{Value: 2},
 					NumUnavailableNodes: &wrappers.UInt32Value{Value: 0},
+					Nodes: []*observerpb.Node{
+						{
+							Name:    nodeTypes.GetName(),
+							Version: "hubble-relay",
+							State:   relaypb.NodeState_NODE_CONNECTED,
+						}, {
+							Name:    "one",
+							Version: "hubble v1.9.0",
+							State:   relaypb.NodeState_NODE_CONNECTED,
+						}, {
+							Name:    "two",
+							Version: "hubble v1.9.0",
+							State:   relaypb.NodeState_NODE_CONNECTED,
+						},
+					},
 				},
 			},
 		}, {
@@ -510,6 +541,7 @@ func TestServerStatus(t *testing.T) {
 							switch p.Name {
 							case "one":
 								return &observerpb.ServerStatusResponse{
+									Version:   "hubble v1.9.0",
 									NumFlows:  1111,
 									MaxFlows:  1111,
 									SeenFlows: 1111,
@@ -524,6 +556,7 @@ func TestServerStatus(t *testing.T) {
 			},
 			want: want{
 				resp: &observerpb.ServerStatusResponse{
+					Version:             "hubble-relay",
 					NumFlows:            1111,
 					MaxFlows:            1111,
 					SeenFlows:           1111,
@@ -531,6 +564,21 @@ func TestServerStatus(t *testing.T) {
 					NumConnectedNodes:   &wrappers.UInt32Value{Value: 1},
 					NumUnavailableNodes: &wrappers.UInt32Value{Value: 1},
 					UnavailableNodes:    []string{"two"},
+					Nodes: []*observerpb.Node{
+						{
+							Name:    nodeTypes.GetName(),
+							Version: "hubble-relay",
+							State:   relaypb.NodeState_NODE_CONNECTED,
+						}, {
+							Name:    "one",
+							Version: "hubble v1.9.0",
+							State:   relaypb.NodeState_NODE_CONNECTED,
+						}, {
+							Name:    "two",
+							Version: "",
+							State:   relaypb.NodeState_NODE_UNAVAILABLE,
+						},
+					},
 				},
 				log: []string{
 					`level=info msg="No connection to peer two, skipping" address="192.0.2.2:4244"`,
@@ -583,6 +631,7 @@ func TestServerStatus(t *testing.T) {
 			},
 			want: want{
 				resp: &observerpb.ServerStatusResponse{
+					Version:             "hubble-relay",
 					NumFlows:            0,
 					MaxFlows:            0,
 					SeenFlows:           0,
@@ -590,6 +639,21 @@ func TestServerStatus(t *testing.T) {
 					NumConnectedNodes:   &wrappers.UInt32Value{Value: 0},
 					NumUnavailableNodes: &wrappers.UInt32Value{Value: 2},
 					UnavailableNodes:    []string{"one", "two"},
+					Nodes: []*observerpb.Node{
+						{
+							Name:    nodeTypes.GetName(),
+							Version: "hubble-relay",
+							State:   relaypb.NodeState_NODE_CONNECTED,
+						}, {
+							Name:    "one",
+							Version: "",
+							State:   relaypb.NodeState_NODE_UNAVAILABLE,
+						}, {
+							Name:    "two",
+							Version: "",
+							State:   relaypb.NodeState_NODE_UNAVAILABLE,
+						},
+					},
 				},
 				log: []string{
 					`level=info msg="No connection to peer one, skipping" address="192.0.2.1:4244"`,

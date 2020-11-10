@@ -22,6 +22,7 @@ import (
 	relaypb "github.com/cilium/cilium/api/v1/relay"
 	"github.com/cilium/cilium/pkg/hubble/build"
 	poolTypes "github.com/cilium/cilium/pkg/hubble/relay/pool/types"
+	nodeTypes "github.com/cilium/cilium/pkg/node/types"
 
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/sirupsen/logrus"
@@ -176,9 +177,18 @@ func (s *Server) ServerStatus(ctx context.Context, req *observerpb.ServerStatusR
 	peers := s.peers.List()
 	var numConnectedNodes, numUnavailableNodes uint32
 	var unavailableNodes []string
+	nodes := make([]*observerpb.Node, 0, len(peers))
+	nodes = append(nodes, &observerpb.Node{
+		Name:    nodeTypes.GetName(),
+		Version: build.RelayVersion.String(),
+		State:   relaypb.NodeState_NODE_CONNECTED,
+	})
 	statuses := make(chan *observerpb.ServerStatusResponse, len(peers))
 	for _, p := range peers {
 		p := p
+		n := &observerpb.Node{
+			Name: p.Name,
+		}
 		if !isAvailable(p.Conn) {
 			numUnavailableNodes++
 			s.opts.log.WithField("address", p.Address).Infof(
@@ -188,19 +198,26 @@ func (s *Server) ServerStatus(ctx context.Context, req *observerpb.ServerStatusR
 			if len(unavailableNodes) < numUnavailableNodesReportMax {
 				unavailableNodes = append(unavailableNodes, p.Name)
 			}
+			n.State = relaypb.NodeState_NODE_UNAVAILABLE
+			nodes = append(nodes, n)
 			continue
 		}
+		n.State = relaypb.NodeState_NODE_CONNECTED
+		nodes = append(nodes, n)
 		numConnectedNodes++
 		g.Go(func() error {
+			n := n
 			client := s.opts.ocb.observerClient(&p)
 			status, err := client.ServerStatus(ctx, req)
 			if err != nil {
+				n.State = relaypb.NodeState_NODE_ERROR
 				s.opts.log.WithFields(logrus.Fields{
 					"error": err,
 					"peer":  p,
 				}).Warning("Failed to retrieve server status")
 				return nil
 			}
+			n.Version = status.GetVersion()
 			select {
 			case statuses <- status:
 			case <-ctx.Done():
@@ -221,6 +238,7 @@ func (s *Server) ServerStatus(ctx context.Context, req *observerpb.ServerStatusR
 			Value: numUnavailableNodes,
 		},
 		UnavailableNodes: unavailableNodes,
+		Nodes:            nodes,
 	}
 	for status := range statuses {
 		if status == nil {
