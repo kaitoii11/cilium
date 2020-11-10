@@ -26,6 +26,7 @@ import (
 
 	flowpb "github.com/cilium/cilium/api/v1/flow"
 	observerpb "github.com/cilium/cilium/api/v1/observer"
+	relaypb "github.com/cilium/cilium/api/v1/relay"
 	v1 "github.com/cilium/cilium/pkg/hubble/api/v1"
 	"github.com/cilium/cilium/pkg/hubble/build"
 	"github.com/cilium/cilium/pkg/hubble/container"
@@ -199,7 +200,14 @@ func (s *LocalObserverServer) ServerStatus(
 	ctx context.Context, req *observerpb.ServerStatusRequest,
 ) (*observerpb.ServerStatusResponse, error) {
 	return &observerpb.ServerStatusResponse{
-		Version:   build.ServerVersion.String(),
+		Version: build.ServerVersion.String(),
+		Nodes: []*observerpb.Node{
+			{
+				Name:    nodeTypes.GetName(),
+				Version: build.ServerVersion.String(),
+				State:   relaypb.NodeState_NODE_CONNECTED,
+			},
+		},
 		MaxFlows:  s.GetRingBuffer().Cap(),
 		NumFlows:  s.GetRingBuffer().Len(),
 		SeenFlows: atomic.LoadUint64(&s.numObservedFlows),
